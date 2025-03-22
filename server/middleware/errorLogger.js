@@ -32,20 +32,16 @@ const errorLogger = async (error, req, res, next) => {
 
   // Send a response if headers are not already sent
   if (!res.headersSent) {
-    const responseMessage = error.message
-      ? "We're sorry for the inconvenience. Please try again after some time."
-      : "We're having trouble connecting to the server. Please try again later.";
+    const responseMessage = error.message || "An unexpected error occurred.";
 
     const statusCode = error.status || 500;
 
-    // res.status(statusCode).send({
-    //   statusCode,
-    //   message: responseMessage,
-    //   error: error.message || '',
-    // });
-
-    return commonHelper.sendErrorResponse(res, statusCode, 'fail', responseMessage,error.message);
-      
+    res.status(statusCode).json({
+      statusCode,
+      status: 'fail',
+      message: responseMessage,
+      error: error.message || '',
+    });
   }
 };
 
