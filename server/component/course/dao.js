@@ -1,5 +1,28 @@
 const Course = require("./model");
 
-exports.getAll = async () => await Course.findAll();
-exports.getById = async (id) => await Course.findByPk(id);
-exports.save = async (data) => data.id ? await Course.update(data, { where: { id: data.id } }) : await Course.create(data);
+const CourseDAO = {
+  async getAll() {
+    return await Course.findAll({ where: { is_deleted: "active" } });
+  },
+
+  async getById(id) {
+    return await Course.findOne({ where: { id, is_deleted: "active" } });
+  },
+
+  async create(data) {
+    return await Course.create(data);
+  },
+
+  async update(id, data) {
+    return await Course.update(data, { where: { id } });
+  },
+
+  async softDelete(id) {
+    return await Course.update(
+      { is_deleted: "inactive", deleted_on: new Date() },
+      { where: { id } }
+    );
+  },
+};
+
+module.exports = CourseDAO;

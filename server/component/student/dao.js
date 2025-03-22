@@ -1,22 +1,34 @@
-const Student = require("./model");
+const StudentsModel = require("./model");
 
-// Get all students
-exports.getAll = async () => {
-    return await Student.findAll();
-};
+// Get all active student enrollments
+async function getAllEnrollments() {
+  return await StudentsModel.findAll({ where: { is_deleted: "active" } });
+}
 
-// Get student by ID
-exports.getById = async (id) => {
-    return await Student.findByPk(id);
-};
+// Get enrollment by ID
+async function getEnrollmentById(id) {
+  return await StudentsModel.findByPk(id);
+}
 
-// Save (Create or Update) Student
-exports.save = async (data) => {
-    if (data.id) {
-        const student = await Student.findByPk(data.id);
-        if (student) {
-            return await student.update(data);
-        }
-    }
-    return await Student.create(data);
+// Create a new enrollment
+async function createEnrollment(data) {
+  return await StudentsModel.create(data);
+}
+
+// Update an enrollment
+async function updateEnrollment(id, data) {
+  return await StudentsModel.update(data, { where: { id } });
+}
+
+// Soft delete an enrollment
+async function deleteEnrollment(id) {
+  return await StudentsModel.update({ is_deleted: "inactive", deleted_on: new Date() }, { where: { id } });
+}
+
+module.exports = {
+  getAllEnrollments,
+  getEnrollmentById,
+  createEnrollment,
+  updateEnrollment,
+  deleteEnrollment,
 };

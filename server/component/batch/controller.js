@@ -1,32 +1,54 @@
-const studentDAO = require("./dao");
+const batchDao = require("./dao");
 
-// Get all students
-exports.getAll = async (req, res) => {
-    try {
-        const students = await studentDAO.getAll();
-        res.json(students);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
+// Get all batches
+async function getAll(req, res) {
+  try {
+    const batches = await batchDao.getAllBatches();
+    res.json({ success: true, data: batches });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
 
-// Get student by ID
-exports.getById = async (req, res) => {
-    try {
-        const student = await studentDAO.getById(req.params.id);
-        if (!student) return res.status(404).json({ message: "Student not found" });
-        res.json(student);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
+// Get batch by ID
+async function getById(req, res) {
+  try {
+    const batch = await batchDao.getBatchById(req.params.id);
+    if (!batch) return res.status(404).json({ success: false, message: "Batch not found" });
+    res.json({ success: true, data: batch });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
 
-// Save student
-exports.save = async (req, res) => {
-    try {
-        const student = await studentDAO.save(req.body);
-        res.status(201).json(student);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
+// Create a new batch
+async function save(req, res) {
+  try {
+    const batch = await batchDao.createBatch(req.body);
+    res.json({ success: true, data: batch });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Update a batch
+async function update(req, res) {
+  try {
+    await batchDao.updateBatch(req.params.id, req.body);
+    res.json({ success: true, message: "Batch updated successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Delete (soft delete) a batch
+async function remove(req, res) {
+  try {
+    await batchDao.deleteBatch(req.params.id);
+    res.json({ success: true, message: "Batch deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+module.exports = { getAll, getById, save, update, remove };
