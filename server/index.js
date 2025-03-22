@@ -1,14 +1,42 @@
-require("dotenv").config();
-const express = require("express");
-const { connectDB } = require("./config/db");
-const apiRouter = require("./router/route");
+const path = require('path');
+const http = require('http');
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv').config();
+const { db } = require('./db');
+const router = require('./router/route.js');
+const { errorLogger } = require("./middleware");
+const keys = require('./keys.js');
+
+// Check for dotenv errors
+if (dotenv.error) { 
+    console.log('dotenv file not found....');
+    throw dotenv.error;
+}
+
+
+
 
 const app = express();
+const staticFilesPath = path.join(__dirname, '../public');
+
+// Middleware setup
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(staticFilesPath));
+app.use(cors());
 
-connectDB();
 
-app.use("/api", apiRouter);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+app.use('/api', router);
+
+
+app.use(errorLogger);
+
+
+const server = http.createServer(app);
+server.listen((keys.PORT || 5000), async () => {
+    console.log(` 🚀Common API started on Port - ${keys.PORT || 5000}`);
+});
+
