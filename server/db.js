@@ -1,15 +1,18 @@
 const Sequelize = require('sequelize');
-
-const keys = require('./keys.js');
 require("dotenv").config();
 
 // Create Sequelize instance
-const sequelize = new Sequelize(keys.MYSQL_DB, keys.MYSQL_USER, keys.MYSQL_PASSWORD, {
-  host: keys.MYSQL_HOST,
-  dialect: 'mysql',
-  timezone: '+05:30', // Set your desired timezone here
-  logging: false, 
-});
+const sequelize = new Sequelize(
+  process.env.MYSQL_DB, 
+  process.env.MYSQL_USER, 
+  process.env.MYSQL_PASSWORD, 
+  {
+    host: process.env.MYSQL_HOST,
+    dialect: 'mysql',
+    timezone: '+05:30', // Set your desired timezone here
+    logging: false, 
+  }
+);
 
 // Test the connection
 sequelize.authenticate()

@@ -2,6 +2,11 @@ const Joi = require("joi");
 
 exports.validateStudent = (data) => {
     const schema = Joi.object({
+        id: Joi.number() // Allow id (optional for insert, required for update)
+            .integer()
+            .positive()
+            .optional(),
+
         first_name: Joi.string()
             .regex(/^[A-Za-z\s]+$/)
             .max(255)
@@ -24,7 +29,7 @@ exports.validateStudent = (data) => {
             .required(),
 
         phone_no: Joi.string()
-            .pattern(/^\+?[1-9]\d{1,14}$/) // Universal phone number format (E.164 standard)
+            .pattern(/^\+?[1-9]\d{1,14}$/)
             .required()
             .messages({
                 "string.pattern.base": "Phone number must be in a valid international format (e.g., +91XXXXXXXXXX).",
@@ -58,7 +63,7 @@ exports.validateStudent = (data) => {
             .required(),
 
         pin_code: Joi.string()
-            .pattern(/^\d{4,10}$/) // Supports 4-10 digit ZIP/postal codes globally
+            .pattern(/^\d{4,10}$/)
             .required()
             .messages({
                 "string.pattern.base": "PIN/ZIP code must be between 4 to 10 digits.",
@@ -83,7 +88,7 @@ exports.validateStudent = (data) => {
         modified_by: Joi.number()
             .integer()
             .positive()
-            .optional()
+            .optional(),
     });
 
     return schema.validate(data);
