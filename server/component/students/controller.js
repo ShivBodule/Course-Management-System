@@ -75,3 +75,55 @@ exports.deleteStudent = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
+
+
+
+exports.getStudentViewById = async (req, res) => {
+  try {
+    const studentDetails = await studentDAO.getStudentViewById(req.params.id);
+    console.log("Student Details:",req.params.id, studentDetails);
+
+    if (!studentDetails) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.status(200).json(studentDetails);
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};
+
+
+exports.assignCourse = async (req, res) => {
+  try {
+    const { 
+      student_id, 
+      courses_id, 
+      payment_type, 
+      total_fees, 
+      discount_applied, 
+      order_amount, 
+      balance_amount, 
+      payable_amount, 
+      payment_mode, 
+      payment_status, 
+      created_by 
+    } = req.body;
+
+    // Validate required fields
+    if (!student_id || !courses_id || !payment_type || !total_fees || !order_amount || !payable_amount || !payment_mode || !payment_status || !created_by) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    const result = await studentDAO.assignCourse(req.body);
+
+    if (result.success) {
+      return res.status(201).json({ success: true, message: "Course assigned successfully", data: result.result });
+    } else {
+      return res.status(500).json({ success: false, message: "Failed to assign course", error: result.error });
+    }
+  } catch (error) {
+    console.error("Error in assignCourse Controller:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+  }
+};
