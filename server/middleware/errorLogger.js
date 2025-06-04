@@ -1,4 +1,4 @@
-const alldb = require('../../../node_share/src/db');
+const alldb = require('../../../CMS/server/db');
 const db = alldb.db;
 
 const errorLogger = async (error, req, res, next) => {

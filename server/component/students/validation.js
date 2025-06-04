@@ -73,6 +73,14 @@ exports.validateStudent = (data) => {
             .max(100)
             .required(),
 
+
+            status: Joi.string()
+    .valid("Active", "Inactive", "Pending")
+    .required()
+    .messages({
+        "any.only": "Status must be 'Active', 'Inactive', or 'Pending'.",
+    }),
+
         registration_date: Joi.date()
             .max("now")
             .required()

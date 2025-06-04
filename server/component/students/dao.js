@@ -201,36 +201,99 @@ exports.assignCourse = async (courseData) => {
       payment_status, 
       created_at,
       modified_at,
-       modified_by,
+      modified_by,
       created_by, 
       is_deleted
     ) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(),?,1, 'active')
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1, 'active')
   `;
 
-  const values = [
-    courseData.student_id,
-    courseData.courses_id,
-    courseData.payment_type,
-    courseData.total_fees,
-    courseData.discount_applied,
-    courseData.order_amount,
-    courseData.balance_amount,
-    courseData.payable_amount,
-    courseData.payment_mode,
-    courseData.payment_status,
-    courseData.created_by,
-  ];
-
   try {
-    const [result] = await sequelize.query(query, {
-      replacements: values,
-      type: sequelize.QueryTypes.INSERT,
-    });
+    for (const courseId of courseData.courses_id) {
+      const values = [
+        courseData.student_id,
+        courseId,  // Looping through multiple course IDs
+        courseData.payment_type,
+        courseData.total_fees,
+        courseData.discount_applied,
+        courseData.order_amount,
+        courseData.balance_amount,
+        courseData.payable_amount,
+        courseData.payment_mode,
+        courseData.payment_status,
+        courseData.created_by,
+      ];
 
-    return { success: true, message: "Course assigned successfully", result };
+      await sequelize.query(query, {
+        replacements: values,
+        type: sequelize.QueryTypes.INSERT,
+      });
+    }
+
+    return { success: true, message: "Courses assigned successfully" };
   } catch (error) {
     console.error("Error assigning course:", error);
     return { success: false, message: "Error assigning course", error };
   }
 };
+
+
+
+exports.updateStudentStatus = async (id, status) => {
+  console.log("Received ID:", id);
+  console.log("Received Status:", status);
+
+  id = Number(id);
+
+  if (!id || isNaN(id)) {
+    console.error("Invalid student ID:", id);
+    throw new Error("Invalid student ID.");
+  }
+
+  if (!["active", "inactive", "pending"].includes(status.toLowerCase())) {
+    console.error("Invalid status value:", status);
+    throw new Error("Invalid status value.");
+  }
+
+  try {
+    const query = `
+    UPDATE students 
+    SET status = ?, modified_at = NOW() 
+    WHERE id = ? AND (status != ? OR modified_at IS NULL) AND is_deleted = 'active'
+`;
+const result = await sequelize.query(query, {
+    replacements: [status, id, status]
+});
+;
+
+    console.log("Update Result:", result);
+    return result;
+  } catch (error) {
+    console.error("Error in DAO (updateStudentStatus):", error);
+    throw error;
+  }
+};
+
+
+exports.getStudentCourses = async (studentId) => {
+  const query = `
+      SELECT c.course_name
+      FROM courses_buy cb
+      JOIN courses c ON cb.courses_id = c.id
+      WHERE cb.student_id = ? AND cb.is_deleted = 'active';
+  `;
+
+  try {
+      const courses = await sequelize.query(query, {
+          replacements: [studentId],
+          type: sequelize.QueryTypes.SELECT
+      });
+
+      return Array.isArray(courses) ? courses : []; // Ensure it's always an array
+  } catch (error) {
+      console.error("Error fetching student courses:", error);
+      throw error;
+  }
+};
+
+

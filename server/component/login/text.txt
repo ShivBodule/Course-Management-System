@@ -1,0 +1,211 @@
+.env
+PORT=4000
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=yourpassword
+DB_NAME=mydatabase
+JWT_SECRET=your_secret_key
+JWT_REFRESH_SECRET=your_refresh_secret_key
+TOKEN_EXPIRY=1h
+REFRESH_TOKEN_EXPIRY=7d
+
+
+controller
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
+  host: process.env.DB_HOST,
+  dialect: 'mysql',
+  logging: false,
+});
+
+(async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Database connected successfully!');
+  } catch (error) {
+    console.error('❌ Unable to connect to database:', error);
+  }
+})();
+
+module.exports = sequelize;
+
+
+dao/auth.js
+const bcrypt = require('bcryptjs');
+const sequelize = require('../config/database');
+
+const authDao = {
+  async createAdmin(email, password) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const query = `INSERT INTO users (email, password, role) VALUES (:email, :password, 'admin')`;
+    await sequelize.query(query, {
+      replacements: { email, password: hashedPassword },
+      type: sequelize.QueryTypes.INSERT,
+    });
+  },
+
+  async findAdminByEmail(email) {
+    const query = `SELECT * FROM users WHERE email = :email AND role = 'admin'`;
+    const [user] = await sequelize.query(query, {
+      replacements: { email },
+      type: sequelize.QueryTypes.SELECT,
+    });
+    return user;
+  },
+
+  async storeRefreshToken(userId, refreshToken) {
+    await sequelize.query(
+      `INSERT INTO refresh_token (user_id, token) VALUES (:userId, :refreshToken)
+       ON DUPLICATE KEY UPDATE token = :refreshToken`,
+      {
+        replacements: { userId, refreshToken },
+        type: sequelize.QueryTypes.INSERT,
+      }
+    );
+  },
+
+  async getRefreshToken(userId) {
+    const query = `SELECT token FROM refresh_token WHERE user_id = :userId`;
+    const [token] = await sequelize.query(query, {
+      replacements: { userId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+    return token?.token;
+  },
+};
+
+module.exports = authDao;
+
+
+
+
+authcontroller
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const authDao = require('../dao/authDao');
+require('dotenv').config();
+
+const authController = {
+  async signup(req, res) {
+    try {
+      const { email, password } = req.body;
+      const existingUser = await authDao.findAdminByEmail(email);
+      if (existingUser) return res.status(400).json({ message: 'Admin already exists!' });
+
+      await authDao.createAdmin(email, password);
+      res.status(201).json({ message: 'Admin created successfully!' });
+    } catch (error) {
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
+      const user = await authDao.findAdminByEmail(email);
+      if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) return res.status(400).json({ message: 'Invalid credentials' });
+
+      // Step 1: Ask for OTP
+      res.json({ message: 'OTP sent', email });
+    } catch (error) {
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async verifyOtp(req, res) {
+    try {
+      const { email, otp } = req.body;
+      if (otp !== '111111') return res.status(400).json({ message: 'Invalid OTP' });
+
+      const user = await authDao.findAdminByEmail(email);
+      if (!user) return res.status(400).json({ message: 'User not found' });
+
+      const accessToken = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.TOKEN_EXPIRY });
+      const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.REFRESH_TOKEN_EXPIRY });
+
+      await authDao.storeRefreshToken(user.id, refreshToken);
+
+      res.json({ accessToken, refreshToken });
+    } catch (error) {
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async refreshToken(req, res) {
+    try {
+      const { refreshToken } = req.body;
+      if (!refreshToken) return res.status(401).json({ message: 'Refresh token required' });
+
+      jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
+        if (err) return res.status(403).json({ message: 'Invalid refresh token' });
+
+        const storedToken = await authDao.getRefreshToken(decoded.userId);
+        if (storedToken !== refreshToken) return res.status(403).json({ message: 'Refresh token mismatch' });
+
+        const accessToken = jwt.sign({ userId: decoded.userId }, process.env.JWT_SECRET, { expiresIn: process.env.TOKEN_EXPIRY });
+        res.json({ accessToken });
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  }
+};
+
+module.exports = authController;
+
+
+jwtauth
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const jwtAuth = (req, res, next) => {
+  const token = req.header('Authorization')?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Access denied, no token provided' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+module.exports = jwtAuth;
+
+
+const express = require('express');
+const authController = require('../controllers/authController');
+
+const router = express.Router();
+
+router.post('/signup', authController.signup);
+router.post('/login', authController.login);
+router.post('/verify-otp', authController.verifyOtp);
+router.post('/refresh-token', authController.refreshToken);
+
+module.exports = router;
+
+
+
+
+server
+const express = require('express');
+const cors = require('cors');
+const authRoutes = require('./routes/authRoutes');
+require('dotenv').config();
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+app.use('/api/auth', authRoutes);
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
